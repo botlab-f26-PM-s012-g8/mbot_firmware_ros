@@ -1,0 +1,16 @@
+# MBot Classic PID Configuration
+# All gains are initial tuning values and may need adjustment
+
+mbot_control_node:
+  ros__parameters:
+    left_wheel.kp: 0.1
+    left_wheel.ki: 0.0
+    left_wheel.kd: 0.01
+    left_wheel.tf: 0.1
+
+    right_wheel.kp: 0.1
+    right_wheel.ki: 0.0
+    right_wheel.kd: 0.01
+    right_wheel.tf: 0.1
+
+    control_mode: 2  # 0=FF only, 1=PID only, 2=FF+PID
