@@ -100,14 +100,14 @@ int mbot_init_micro_ros(void) {
         printf("[FATAL] Time sync with agent failed: %d\n", sync_ret);
         while(1) { tight_loop_contents(); }
     }
-        
+
     ret = rclc_node_init_default(&node, "mbot_control_node", "", &support);
     if (ret != RCL_RET_OK) {
         printf("rclc_node_init_default failed: %d\n", ret);
         rclc_support_fini(&support);
         return MBOT_ERROR;
     }
-    
+
     ret = mbot_ros_comms_init_messages(&allocator);
     if (ret != MBOT_OK) return MBOT_ERROR;
 
@@ -133,20 +133,20 @@ int mbot_init_micro_ros(void) {
         printf("[ERROR] Timer init failed: %d\n", ret);
         return MBOT_ERROR;
     }
- 
+
     // Initialize executor with enough handles for parameter server, subscribers, timer, and services
     ret = rclc_executor_init(&executor, &support.context, RCLC_EXECUTOR_PARAMETER_SERVER_HANDLES + 7, &allocator);
     if (ret != RCL_RET_OK) {
         printf("[ERROR] Failed to init executor: %d\n", ret);
         return MBOT_ERROR;
     }
-    
+
     ret = rclc_executor_add_timer(&executor, &ros_publish_timer);
     if (ret != RCL_RET_OK) {
         printf("[ERROR] Adding timer to executor failed: %d\n", ret);
         return MBOT_ERROR;
     }
-    
+
     ret = rcl_timer_call(&ros_publish_timer);
     if (ret != RCL_RET_OK) {
         printf("[ERROR] Timer call failed: %d\n", ret);
@@ -161,9 +161,9 @@ int mbot_init_micro_ros(void) {
 
     ret = mbot_ros_comms_add_to_executor(&executor);
     if (ret != MBOT_OK) return MBOT_ERROR;
-    
+
     return MBOT_OK;
-}   
+}
 
 // Handle incoming ROS messages
 int mbot_spin_micro_ros(void) {
@@ -172,7 +172,7 @@ int mbot_spin_micro_ros(void) {
         printf("microROS spin error: %d\r\n", ret);
         return MBOT_ERROR;
     }
-    
+
     return MBOT_OK;
 }
 
@@ -200,9 +200,10 @@ static void mbot_publish_state(void) {
         ret = rcl_publish(&tf_publisher, &tf_msg, NULL);
     }
 
-    // Encoders & Odometry & TF - every 4th tick (25 Hz at 100 Hz timer)
+    // Odometry and Gyro Odometry - every 4th tick (25 Hz at 100 Hz timer)
     if (tick % 4 == 0) {
         ret = rcl_publish(&odom_publisher, &odom_msg, NULL);
+        ret = rcl_publish(&gyrodom_publisher, &gyrodom_msg, NULL);
     }
 
     // Battery - every 25th tick (4 Hz at 100 Hz timer)
@@ -215,7 +216,7 @@ static void mbot_publish_state(void) {
 static bool mbot_loop(repeating_timer_t *rt) {
     {   // Critical section for sensor and state update
         ENTER_CRITICAL();
-        mbot_read_encoders();    
+        mbot_read_encoders();
         mbot_read_imu();
         mbot_read_adc();
         mbot_calculate_motor_vel();
@@ -235,16 +236,16 @@ static bool mbot_loop(repeating_timer_t *rt) {
             &mbot_state.odom_y,
             &mbot_state.odom_theta
         );
-        // mbot_calculate_gyrodometry(
-        //     mbot_state.vx,
-        //     mbot_state.vy,
-        //     mbot_state.wz,
-        //     MAIN_LOOP_PERIOD,
-        //     mbot_state.imu_gyro[2],
-        //     &mbot_state.odom_x,
-        //     &mbot_state.odom_y,
-        //     &mbot_state.odom_theta
-        // );
+        mbot_calculate_gyrodometry(
+            mbot_state.vx,
+            mbot_state.vy,
+            mbot_state.wz,
+            MAIN_LOOP_PERIOD,
+            mbot_state.imu_gyro[2],
+            &mbot_state.gyrodom_x,
+            &mbot_state.gyrodom_y,
+            &mbot_state.gyrodom_theta
+        );
         /* Populate odometry and TF ROS messages with the exact timestamp of this calculation */
         int64_t stamp_ns = rmw_uros_epoch_nanos();
 
@@ -265,6 +266,24 @@ static bool mbot_loop(repeating_timer_t *rt) {
         odom_msg.twist.twist.linear.x  = mbot_state.vx;
         odom_msg.twist.twist.linear.y  = mbot_state.vy;
         odom_msg.twist.twist.angular.z = mbot_state.wz;
+
+        /* Gryo Odometry message */
+        gyrodom_msg.header.stamp.sec     = stamp_ns / 1000000000LL;
+        gyrodom_msg.header.stamp.nanosec = stamp_ns % 1000000000LL;
+        gyrodom_msg.pose.pose.position.x = mbot_state.gyrodom_x;
+        gyrodom_msg.pose.pose.position.y = mbot_state.gyrodom_y;
+        gyrodom_msg.pose.pose.position.z = 0.0f;
+
+        float gcy = cosf(mbot_state.gyrodom_theta * 0.5f);
+        float gsy = sinf(mbot_state.gyrodom_theta * 0.5f);
+        gyrodom_msg.pose.pose.orientation.w = gcy;
+        gyrodom_msg.pose.pose.orientation.x = 0.0f;
+        gyrodom_msg.pose.pose.orientation.y = 0.0f;
+        gyrodom_msg.pose.pose.orientation.z = gsy;
+
+        gyrodom_msg.twist.twist.linear.x  = mbot_state.vx;
+        gyrodom_msg.twist.twist.linear.y  = mbot_state.vy;
+        gyrodom_msg.twist.twist.angular.z = mbot_state.imu_gyro[2];
 
         /* TF message (odom -> base_footprint) */
         tf_msg.transforms.data[0].header.stamp.sec     = odom_msg.header.stamp.sec;
@@ -372,7 +391,7 @@ static bool mbot_loop(repeating_timer_t *rt) {
                     local_state.wheel_vel[MOT_L], local_state.wheel_vel[MOT_R],
                     &left_correction, &right_correction
                 );
-                
+
                 // Apply motor polarity to PID corrections
                 pid_pwm_left = params.motor_polarity[MOT_L] * left_correction;
                 pid_pwm_right = params.motor_polarity[MOT_R] * right_correction;
@@ -418,7 +437,7 @@ static bool mbot_loop(repeating_timer_t *rt) {
         EXIT_CRITICAL();
     }
 
-    return true; 
+    return true;
 }
 
 // Timer callback for periodic ROS publishing (runs at ROS_TIMER_HZ)
@@ -441,10 +460,10 @@ int main() {
     // Initialize Dual CDC and stdio
     stdio_init_all();
     dual_cdc_init();
-    // Launch USB-servicing loop on core 1 
+    // Launch USB-servicing loop on core 1
     multicore_launch_core1(core1_usb_task);
     mbot_wait_ms(2000);
-    
+
     printf("\r\nMBot Classic Firmware (ROS2)\r\n");
     printf("--------------------------------\r\n");
 
@@ -464,7 +483,7 @@ int main() {
     }
 
     printf("\nStarting MBot Loop...\n");
-    mbot_state.last_encoder_time = time_us_64(); 
+    mbot_state.last_encoder_time = time_us_64();
     if (!add_repeating_timer_ms((int32_t)(MAIN_LOOP_PERIOD * 1000.0f), mbot_loop, NULL, &mbot_loop_timer)){
         printf("Failed to add control loop timer! Halting.\r\n");
         while(1) {tight_loop_contents();}
@@ -501,7 +520,7 @@ int main() {
     }
 
     printf("Done Booting Up!\n");
-    fflush(stdout); 
+    fflush(stdout);
 
     // Main loop: if a fatal error occurs, halt and wait for reset
     static int64_t last_200ms_time = 0;
@@ -515,7 +534,7 @@ int main() {
             last_200ms_time = time_us_64();
             mbot_print_state(&mbot_state);
         }
-        sleep_us(500); 
+        sleep_us(500);
     }
     return 0;
 }
@@ -534,7 +553,7 @@ static int mbot_init_hardware(void){
     mbot_motor_init(MOT_R);
     mbot_encoder_init();
 
-    // Initialize the IMU 
+    // Initialize the IMU
     mbot_imu_config = mbot_imu_default_config();
     mbot_imu_config.sample_rate = 200;
     mbot_imu_init(&mbot_imu_data, mbot_imu_config);
@@ -596,7 +615,7 @@ static void mbot_read_encoders(void) {
 
     // Calculate actual delta time since last encoder read
     mbot_state.encoder_delta_t = now - mbot_state.last_encoder_time;
-    
+
     // If dt is zero or negative (e.g. time_us_64 wraps or error), use nominal period
     if (mbot_state.encoder_delta_t <= 0) {
         mbot_state.encoder_delta_t = ((int64_t)(MAIN_LOOP_PERIOD * 1000000.0f));
@@ -649,16 +668,16 @@ static float calibrated_pwm_from_vel_cmd(float vel_cmd, int motor_idx) {
 static void mbot_calculate_motor_vel(void) {
     float conversion = (1.0f / GEAR_RATIO) * (1.0f / ENCODER_RES) * 1E6f * 2.0f * PI;
     int64_t delta_t = mbot_state.encoder_delta_t; // Use the corrected delta_time
-    
-    if (delta_t <= 0) { /* Avoid division by zero or invalid dt */ 
+
+    if (delta_t <= 0) { /* Avoid division by zero or invalid dt */
         mbot_state.wheel_vel[MOT_L] = 0.0f;
         mbot_state.wheel_vel[MOT_R] = 0.0f;
-        return; 
+        return;
     }
 
-    mbot_state.wheel_vel[MOT_L] = params.encoder_polarity[MOT_L] * 
+    mbot_state.wheel_vel[MOT_L] = params.encoder_polarity[MOT_L] *
         (conversion / delta_t) * mbot_state.encoder_delta_ticks[MOT_L];
-    mbot_state.wheel_vel[MOT_R] = params.encoder_polarity[MOT_R] * 
+    mbot_state.wheel_vel[MOT_R] = params.encoder_polarity[MOT_R] *
         (conversion / delta_t) * mbot_state.encoder_delta_ticks[MOT_R];
 }
 

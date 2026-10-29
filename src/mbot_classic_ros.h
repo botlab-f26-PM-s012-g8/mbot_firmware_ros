@@ -31,13 +31,17 @@ typedef struct {
     float odom_x;
     float odom_y;
     float odom_theta;
+    //Gyroscope odometry
+    float gyrodom_x;
+    float gyrodom_y;
+    float gyrodom_theta;
     // Body velocity
     float vx;
     float vy;
     float wz;
     // Wheel state
-    float wheel_vel[NUM_MOT_SLOTS]; 
-    int32_t encoder_ticks[NUM_MOT_SLOTS]; 
+    float wheel_vel[NUM_MOT_SLOTS];
+    int32_t encoder_ticks[NUM_MOT_SLOTS];
     int32_t encoder_delta_ticks[NUM_MOT_SLOTS];
     // Motor control
     float motor_pwm[NUM_MOT_SLOTS];
@@ -71,23 +75,23 @@ extern mbot_cmd_t mbot_cmd;
 
 /**
  * @brief Initialize microROS communication
- * 
+ *
  * @return int MBOT_OK on success, MBOT_ERROR otherwise
  */
 int mbot_init_micro_ros(void);
 
 /**
  * @brief Handle incoming ROS messages
- * 
+ *
  * @return int MBOT_OK on success, MBOT_ERROR otherwise
  */
 int mbot_spin_micro_ros(void);
 
 /**
  * @brief Set up ROS publishers and subscribers
- * 
+ *
  * @return int MBOT_OK on success, MBOT_ERROR otherwise
  */
 int mbot_init_micro_ros_comm(void);
 
-#endif /* MBOT_CLASSIC_ROS_H */ 
+#endif /* MBOT_CLASSIC_ROS_H */
