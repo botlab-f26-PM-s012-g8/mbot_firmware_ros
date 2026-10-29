@@ -32,6 +32,13 @@ void mbot_motor_vel_controller(float target_left_vel, float target_right_vel,
                               float current_left_vel, float current_right_vel,
                               float* left_correction, float* right_correction);
 
+// Clear wheel PID state (integrator and history)
+void mbot_motor_vel_controller_reset(void);
+
+// Limit PID output so that ff + polarity*pid stays within [-1, 1] (anti-windup)
+void mbot_motor_vel_controller_set_limits(float ff_left, int pol_left,
+                                          float ff_right, int pol_right);
+
 // Populate global pid_gains from values stored in mbot_params_t
 void mbot_read_pid_gains(const mbot_params_t* params);
 

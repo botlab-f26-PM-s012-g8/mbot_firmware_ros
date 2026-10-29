@@ -7,6 +7,7 @@
 #include <rc/math/filter.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <stdint.h>
 #include <mbot/fram/fram.h>
 
@@ -77,6 +78,24 @@ void mbot_motor_vel_controller(float target_left_vel, float target_right_vel,
     // Run PID controllers for each wheel
     *left_correction = rc_filter_march(&left_wheel_pid, left_error);
     *right_correction = rc_filter_march(&right_wheel_pid, right_error);
+}
+
+void mbot_motor_vel_controller_reset(void) {
+    rc_filter_reset(&left_wheel_pid);
+    rc_filter_reset(&right_wheel_pid);
+}
+
+// Limit PID output so that ff + polarity*pid stays within [-1, 1]
+static void set_pid_limits(rc_filter_t* f, float ff, int polarity) {
+    float a = polarity * (-1.0f - ff);
+    float b = polarity * ( 1.0f - ff);
+    rc_filter_enable_saturation(f, fminf(a, b), fmaxf(a, b));
+}
+
+void mbot_motor_vel_controller_set_limits(float ff_left, int pol_left,
+                                          float ff_right, int pol_right) {
+    set_pid_limits(&left_wheel_pid, ff_left, pol_left);
+    set_pid_limits(&right_wheel_pid, ff_right, pol_right);
 }
 
 int init_parameter_server(rclc_parameter_server_t* parameter_server, rcl_node_t* node) {

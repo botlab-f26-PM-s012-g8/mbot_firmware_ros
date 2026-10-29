@@ -288,6 +288,16 @@ static bool mbot_loop(repeating_timer_t *rt) {
     get_mbot_cmd_safe(&local_cmd);
     get_mbot_state_safe(&local_state);
     bool cmd_fresh = (time_us_64() - local_cmd.timestamp_us) < MBOT_TIMEOUT_US;
+
+    // Reset integrator on stale command or mode change
+    static int prev_drive_mode = -1;
+    if (!cmd_fresh || (int)local_cmd.drive_mode != prev_drive_mode) {
+        mbot_motor_vel_controller_reset();
+    }
+    prev_drive_mode = cmd_fresh ? (int)local_cmd.drive_mode : -1;
+
+    // Only subtract FF headroom from the PID limits when FF is actually applied
+    bool use_ff = (control_mode == CONTROL_MODE_FF_PID);
     float pwm_left = 0.0f, pwm_right = 0.0f;
     float pid_pwm_left = 0.0f, pid_pwm_right = 0.0f;
     if (cmd_fresh) {
@@ -303,7 +313,15 @@ static bool mbot_loop(repeating_timer_t *rt) {
                 float vel_right_comp = local_cmd.wheel_vel[MOT_R] * params.motor_polarity[MOT_R];
                 float ff_pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
                 float ff_pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
-    
+
+                // Zero target: no integral should be held
+                if (local_cmd.wheel_vel[MOT_L] == 0.0f && local_cmd.wheel_vel[MOT_R] == 0.0f) {
+                    mbot_motor_vel_controller_reset();
+                }
+                mbot_motor_vel_controller_set_limits(
+                    use_ff ? ff_pwm_left  : 0.0f, params.motor_polarity[MOT_L],
+                    use_ff ? ff_pwm_right : 0.0f, params.motor_polarity[MOT_R]);
+
                 // PID PWM
                 float left_correction = 0.0f, right_correction = 0.0f;
                 mbot_motor_vel_controller(
@@ -338,6 +356,14 @@ static bool mbot_loop(repeating_timer_t *rt) {
                 float vel_right_comp = params.motor_polarity[MOT_R] * target_vel_right;
                 float ff_pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
                 float ff_pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+
+                // Zero target: no integral should be held
+                if (target_vel_left == 0.0f && target_vel_right == 0.0f) {
+                    mbot_motor_vel_controller_reset();
+                }
+                mbot_motor_vel_controller_set_limits(
+                    use_ff ? ff_pwm_left  : 0.0f, params.motor_polarity[MOT_L],
+                    use_ff ? ff_pwm_right : 0.0f, params.motor_polarity[MOT_R]);
 
                 // PID PWM
                 float left_correction = 0.0f, right_correction = 0.0f;
