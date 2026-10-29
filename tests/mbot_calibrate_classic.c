@@ -55,6 +55,7 @@ int find_index_of_max_positive(float* arr, int size) {
 
 void least_squares_fit(float* pwms, float* speeds, int n, float* m, float* b) {
     float sum_x = 0.0, sum_y = 0.0, sum_xy = 0.0, sum_xx = 0.0;
+    int k = 0; // number of samples actually used (zero-speed samples are skipped)
 
     for (int i = 0; i < n; ++i) {
         if (speeds[i] != 0.0) {
@@ -62,11 +63,12 @@ void least_squares_fit(float* pwms, float* speeds, int n, float* m, float* b) {
             sum_y += pwms[i];
             sum_xy += speeds[i] * pwms[i];
             sum_xx += speeds[i] * speeds[i];
+            k++;
         }
     }
 
-    *m = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x);
-    *b = (sum_y - *m * sum_x) / n;
+    *m = (k * sum_xy - sum_x * sum_y) / (k * sum_xx - sum_x * sum_x);
+    *b = (sum_y - *m * sum_x) / k;
 }
 
 void print_mbot_params_dd(const mbot_params_t* params) {
