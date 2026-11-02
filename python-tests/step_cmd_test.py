@@ -22,7 +22,7 @@ def main():
     print("Starting sequence...")
 
     # 1. Drive forward 0.5 m/s for 4s
-    move(0.2, 0.0, 8.0)
+    move(0.5, 0.0, 4.0)
 
     # 2. Wait 1s
     move(0.0, 0.0, 1.0)
