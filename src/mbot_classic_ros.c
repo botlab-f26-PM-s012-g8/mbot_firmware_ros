@@ -308,12 +308,15 @@ static bool mbot_loop(repeating_timer_t *rt) {
     get_mbot_state_safe(&local_state);
     bool cmd_fresh = (time_us_64() - local_cmd.timestamp_us) < MBOT_TIMEOUT_US;
 
-    // Reset integrator on stale command or mode change
+    // Reset integrator on stale command, mode change, or while the PID output is unused
     static int prev_drive_mode = -1;
-    if (!cmd_fresh || (int)local_cmd.drive_mode != prev_drive_mode) {
+    static control_mode_t prev_control_mode = (control_mode_t)-1;
+    if (!cmd_fresh || (int)local_cmd.drive_mode != prev_drive_mode ||
+        control_mode != prev_control_mode || control_mode == CONTROL_MODE_FF_ONLY) {
         mbot_motor_vel_controller_reset();
     }
     prev_drive_mode = cmd_fresh ? (int)local_cmd.drive_mode : -1;
+    prev_control_mode = control_mode;
 
     // Only subtract FF headroom from the PID limits when FF is actually applied
     bool use_ff = (control_mode == CONTROL_MODE_FF_PID);
