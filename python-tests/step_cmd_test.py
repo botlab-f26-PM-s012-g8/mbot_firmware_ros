@@ -12,7 +12,7 @@ def main():
         msg = Twist()
         msg.linear.x = float(linear_x)
         msg.angular.z = float(angular_z)
-        
+
         # Publish for the specified duration
         start_time = time.time()
         while time.time() - start_time < duration:
@@ -20,19 +20,19 @@ def main():
             time.sleep(0.05)
 
     print("Starting sequence...")
-    
+
     # 1. Drive forward 0.5 m/s for 4s
-    move(0.5, 0.0, 4.0)
-    
+    move(0.2, 0.0, 8.0)
+
     # 2. Wait 1s
     move(0.0, 0.0, 1.0)
-    
+
     # 3. Rotate CW (negative) for 4s
     move(0.0, -1.0, 4.0)
-    
+
     # 4. Wait 1s
     move(0.0, 0.0, 1.0)
-    
+
     # 5. Rotate CCW (positive) for 4s
     move(0.0, 1.0, 4.0)
 
