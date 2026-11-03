@@ -1,0 +1,17 @@
+{
+  "/odom": {
+    "format": "table/csv@single_file",
+    "path": "./csv_output",
+    "subfolder": "",
+    "naming": "odom"
+  },
+  "/cmd_vel": {
+    "format": "table/csv@single_file",
+    "path": "./csv_output",
+    "subfolder": "",
+    "naming": "cmd_vel"
+  },
+  "__global__": {
+    "cpu_percentage": 80.0
+  }
+}
