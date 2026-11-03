@@ -7,7 +7,8 @@
 
 // MBot Classic Parameters
 #define DIFF_WHEEL_DIAMETER          0.0837
-#define DIFF_WHEEL_RADIUS            0.04183
+#define DIFF_L_WHEEL_RADIUS          0.04183
+#define DIFF_R_WHEEL_RADIUS          0.04183
 #define DIFF_BASE_RADIUS             0.085
 #define MOT_R                        1   // Right motor slot
 #define MOT_L                        0   // Left motor slot

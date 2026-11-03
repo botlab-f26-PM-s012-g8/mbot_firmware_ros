@@ -227,6 +227,7 @@ static bool mbot_loop(repeating_timer_t *rt) {
             &mbot_state.vy,
             &mbot_state.wz
         );
+        /* Velocity-based odometry (replaced by tick-based versions below)
         mbot_calculate_odometry(
             mbot_state.vx,
             mbot_state.vy,
@@ -241,6 +242,23 @@ static bool mbot_loop(repeating_timer_t *rt) {
             mbot_state.vy,
             mbot_state.wz,
             MAIN_LOOP_PERIOD,
+            mbot_state.imu_gyro[2],
+            &mbot_state.gyrodom_x,
+            &mbot_state.gyrodom_y,
+            &mbot_state.gyrodom_theta
+        );
+        */
+        mbot_calculate_odometry_ticks(
+            mbot_state.encoder_delta_ticks[MOT_L],
+            mbot_state.encoder_delta_ticks[MOT_R],
+            &mbot_state.odom_x,
+            &mbot_state.odom_y,
+            &mbot_state.odom_theta
+        );
+        mbot_calculate_gyrodometry_ticks(
+            mbot_state.encoder_delta_ticks[MOT_L],
+            mbot_state.encoder_delta_ticks[MOT_R],
+            mbot_state.encoder_delta_t * 1e-6f,  // measured loop time, us -> s
             mbot_state.imu_gyro[2],
             &mbot_state.gyrodom_x,
             &mbot_state.gyrodom_y,
@@ -370,8 +388,8 @@ static bool mbot_loop(repeating_timer_t *rt) {
                 break;
             }
             case MODE_MBOT_VEL: {
-                float target_vel_left = (local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
-                float target_vel_right = (-local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
+                float target_vel_left = (local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_L_WHEEL_RADIUS;
+                float target_vel_right = (-local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_R_WHEEL_RADIUS;
 
                 // Feedforward PWM
                 float vel_left_comp = params.motor_polarity[MOT_L] * target_vel_left;
@@ -686,9 +704,9 @@ static void mbot_calculate_motor_vel(void) {
 
 static void mbot_calculate_diff_body_vel(float wheel_left_vel, float wheel_right_vel, float* vx, float* vy, float* wz) {
     // Calculate forward velocity and angular velocity
-    *vx = DIFF_WHEEL_RADIUS * (wheel_left_vel - wheel_right_vel) / 2.0f;
+    *vx = (DIFF_L_WHEEL_RADIUS * wheel_left_vel - DIFF_R_WHEEL_RADIUS * wheel_right_vel) / 2.0f;
     *vy = 0.0;
-    *wz = DIFF_WHEEL_RADIUS * (-wheel_left_vel - wheel_right_vel) / (2.0f * DIFF_BASE_RADIUS);
+    *wz = (DIFF_L_WHEEL_RADIUS * -wheel_left_vel - DIFF_R_WHEEL_RADIUS * wheel_right_vel) / (2.0f * DIFF_BASE_RADIUS);
 }
 
 static void print_mbot_params(const mbot_params_t* params) {
