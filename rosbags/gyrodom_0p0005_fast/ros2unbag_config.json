@@ -1,0 +1,18 @@
+
+{
+  "/odom": {
+    "format": "table/csv@single_file",
+    "path": "./csv_output",
+    "subfolder": "",
+    "naming": "odom"
+  },
+  "/gyrodom": {
+    "format": "table/csv@single_file",
+    "path": "./csv_output",
+    "subfolder": "",
+    "naming": "gyrodom"
+  },
+  "__global__": {
+    "cpu_percentage": 80.0
+  }
+}

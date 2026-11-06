@@ -7,7 +7,7 @@
 #define PI 3.14159265358979323846f
 #endif
 
-#define GYRODOM_THRESHOLD 0.001f   // ~0.1 rad/s difference at 100 Hz
+#define GYRODOM_THRESHOLD 0.0005f   // ~0.05 rad/s difference at 100 Hz
 
 extern mbot_params_t params;
 
