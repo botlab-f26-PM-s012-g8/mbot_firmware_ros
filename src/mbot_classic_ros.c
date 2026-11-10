@@ -303,15 +303,15 @@ static bool mbot_loop(repeating_timer_t *rt) {
         gyrodom_msg.twist.twist.linear.y  = mbot_state.vy;
         gyrodom_msg.twist.twist.angular.z = mbot_state.imu_gyro[2];
 
-        /* TF message (odom -> base_footprint) */
+        /* TF message (odom -> base_footprint), pose from gyrodometry */
         tf_msg.transforms.data[0].header.stamp.sec     = odom_msg.header.stamp.sec;
         tf_msg.transforms.data[0].header.stamp.nanosec = odom_msg.header.stamp.nanosec;
         tf_msg.transforms.data[0].header.frame_id      = odom_msg.header.frame_id;
         tf_msg.transforms.data[0].child_frame_id       = odom_msg.child_frame_id;
-        tf_msg.transforms.data[0].transform.translation.x = odom_msg.pose.pose.position.x;
-        tf_msg.transforms.data[0].transform.translation.y = odom_msg.pose.pose.position.y;
-        tf_msg.transforms.data[0].transform.translation.z = odom_msg.pose.pose.position.z;
-        tf_msg.transforms.data[0].transform.rotation      = odom_msg.pose.pose.orientation;
+        tf_msg.transforms.data[0].transform.translation.x = gyrodom_msg.pose.pose.position.x;
+        tf_msg.transforms.data[0].transform.translation.y = gyrodom_msg.pose.pose.position.y;
+        tf_msg.transforms.data[0].transform.translation.z = 0.0f;
+        tf_msg.transforms.data[0].transform.rotation      = gyrodom_msg.pose.pose.orientation;
         tf_msg.transforms.size = 1;
 
         /* Local timestamp (for non-ROS diagnostics) */
